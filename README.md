@@ -1,2 +1,3 @@
-# RainfallPrediction_Kaggle
-Analysis of weather data for a rainfall prediction competition on Kaggle
+# Kaggle Competitions
+* Binary Prediction with a Rainfall Dataset
+  * https://www.kaggle.com/competitions/playground-series-s5e3
