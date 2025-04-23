@@ -1,8 +1,23 @@
 import pandas as pd
+import numpy as np
 import math
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.feature_selection import mutual_info_regression
+import xgboost as xgb
+from sklearn.model_selection import KFold, train_test_split, GridSearchCV, RandomizedSearchCV
+from sklearn.metrics import mean_squared_error
+from sklearn.ensemble import GradientBoostingRegressor, StackingRegressor, HistGradientBoostingRegressor
+from sklearn.linear_model import HuberRegressor
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
+from keras.layers import LeakyReLU
+from tensorflow.keras.callbacks import EarlyStopping
+from IPython.display import clear_output
+from lazypredict.Supervised import LazyRegressor
+from scipy.stats import uniform, randint
+from lightgbm import LGBMRegressor
 
 def split_target(df,target):
     '''
@@ -105,3 +120,110 @@ def plot_correlations(df,save_name):
     plt.figure(figsize=(15,15))
     sns.heatmap(data=corr_data, cmap='coolwarm', annot=True, fmt='.2g')
     plt.savefig(f'Plots/{save_name}.png', dpi=300, bbox_inches='tight')
+
+def train_HuberRegressor(X_train, y_train):
+    print('Starting to train HuberRegressor\n')
+
+    params = {
+        'epsilon': 6.309137428783002,
+        'alpha': 0.004877974938442685,
+        'max_iter': 200,
+        'fit_intercept': True,
+        'tol': 0.0008494667285558747
+    }
+
+    huber = HuberRegressor(**params)
+    huber.fit(X_train, y_train)
+    return huber
+
+def train_HistGradientBoostingRegressor(X_train, y_train):
+    print('Starting to train HistGradientBoostingRegressor\n')
+
+    params = {
+        'max_iter': 427,
+        'learning_rate': 0.09571615180145268,
+        'max_depth': 11,
+        'min_samples_leaf': 84,
+        'l2_regularization': 0.7152624894796115,
+        'max_bins': 206,
+    }
+
+    hgb = HistGradientBoostingRegressor(**params)
+    hgb.fit(X_train,y_train)
+
+    return hgb
+
+def train_GradientBoostingRegressor(X_train,y_train):
+    print('Starting to train GradientBoostingRegressor\n')
+    params = {
+        'n_estimators': 393,
+        'learning_rate': 0.06693690822892108,
+        'max_depth': 12,
+        'min_samples_split': 7,
+        'min_samples_leaf': 8,
+        'subsample': 0.9414365090985378,
+        'max_features': None
+    }
+    gbr = GradientBoostingRegressor(**params)
+    gbr.fit(X_train,y_train)
+    return gbr
+
+def train_XGBoost(X_train,y_train):
+    print('Starting to train XGBRegressor\n')
+    params = {
+        "n_estimators": 462,
+        "learning_rate": 0.08154792163442738,
+        "max_depth": 12,
+        "subsample": 0.9058954745308208,
+        "colsample_bytree": 0.9456526638491439,
+        "random_state": 0,
+        "gamma": 0.33164411963508833,
+        "reg_alpha": 0.01428218246267099,
+        "reg_lambda": 0.8988143668046589
+    }
+    # XGBoost model
+    model = xgb.XGBRegressor(**params)
+    model.fit(X_train,y_train)
+    return model
+
+def train_LGBMRegressor(X_train, y_train):
+    print('Starting to train LGBMRegressor\n')
+    params = {
+        'n_estimators': 457,
+        'learning_rate': 0.014915560132499209,
+        'max_depth': 3,
+        'num_leaves': 72,
+        'min_child_samples': 19,
+        'subsample': 0.7381421172094151,
+        'colsample_bytree': 0.9449478096939333,
+        'reg_alpha': 0.685559421931073,
+        'reg_lambda': 0.3105632580080139,
+        'random_state': 42
+    }
+    lgbm = LGBMRegressor(**params)
+    lgbm.fit(X_train,y_train)
+    return lgbm
+
+def train_StackingModel(X,y,model_list):
+    num_models = len(model_list)
+    print(f'Creating stacking model from {num_models} models\n')
+    model_names = [f'model_{idx}' for idx in range(num_models)]
+    estimators = list(zip(model_names, model_list))  # THIS is the fix
+    model_names = []
+    cv_fold = KFold(n_splits= 5,shuffle=True,random_state=42)
+    model = StackingRegressor(
+        estimators=estimators,
+        cv=cv_fold
+    )
+
+    model.fit(X,y)
+    return model
+
+def SaveOutputFilesForCompetition(df,preds):
+    print('Saving output files\n')
+    idx_array = np.arange(750000,1000000,dtype=int)
+    df_idx = pd.Series(idx_array)
+    print(df_idx)
+    output = pd.DataFrame({'id': df_idx,
+                       target: preds})
+    output.to_csv('Data/submission.csv', index=False)
